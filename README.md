@@ -1,6 +1,6 @@
-##ERA5 Reanalysis Downloader Script##
+## ERA5 Reanalysis Downloader Script ##
 A python script that allows the user to download ERA5 reanalysis data from the Cupernicus Data Store (CDS).
-##Getting Started##
+## Getting Started ##
 Just copy the file ``cds_era5_script.py`` from the repository and run it:
 
 	$ python cds_era5_script.py --help
