@@ -1,8 +1,0 @@
-# this file should be named cds_params.txt and should contain custom params
-# the first line should be filename
-name,param
-filename,era5_MTTPM_54
-stream,moda
-type,fc
-levtype,ml
-levelist,54
