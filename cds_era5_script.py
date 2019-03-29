@@ -203,6 +203,27 @@ class cds_single:
                 print(key + ':', ', '.join([str(x) for x in value]))
             else:
                 print(key + ':', str(value))
+        self.count_items()
+
+    def listify_vars(self):
+        vars_d = {k: [str(x)] for k, x in vars(self).items() if not
+                  isinstance(x, list)}
+        vars(self).update(**vars_d)
+        return self
+
+    def count_items(self):
+        from numpy import prod
+        max_items = 100000
+        self.listify_vars()
+        attrs_not_to_count = ['product_type', 'grid', 'format']
+        count = prod([len(x) for k, x in vars(self).items() if k not in
+                      attrs_not_to_count])
+        if count >= max_items:
+            raise ValueError('Items count is: ' + str(count) +
+                             ' and is higher than ' + str(max_items) + ' !')
+        print('Items count is: ' + str(count) + ' while max is: ' +
+              str(max_items))
+        return
 
 
 class cds_pressure(cds_single):
@@ -278,10 +299,23 @@ class cds_mars:
             raise Halfnot1or2('Half should be 1 or 2...')
 
 
+#def get_custom_params(custom_fn, cds_obj):
+#    import pandas as pd
+#    df = pd.read_csv(custom_fn, skiprows=2)
+#    dd = dict(zip(df.name.values, df.param.values))
+#    c_dict = {}
+#    c_dict['filename'] = dd.pop('filename')
+#    if dd['stream'] == 'moda':
+#        c_dict['monthly'] = True
+#    cds_obj.from_dict(dd)
+#    cds_obj.del_attr('step')
+#    cds_obj.del_attr('time')
+#    return cds_obj, c_dict
+
 def get_custom_params(custom_fn, cds_obj):
-    import pandas as pd
-    df = pd.read_csv(custom_fn, skiprows=2)
-    dd = dict(zip(df.name.values, df.param.values))
+    import json
+    with open(custom_fn) as f:
+        dd = json.load(f)
     c_dict = {}
     c_dict['filename'] = dd.pop('filename')
     if dd['stream'] == 'moda':
@@ -300,7 +334,10 @@ def generate_filename(modelname, field, cds_obj, half=1):
         value_list = ['era5', field, years]
     elif 'pressure' in modelname.split('-'):
         Half = 'H' + str(half)
-        year = cds_obj.year
+        if isinstance(cds_obj.year, list):
+            year = cds_obj.year[0]
+        else:
+            year = cds_obj.year
         value_list = ['era5', field, year, Half]
     elif 'complete' in modelname.split('-'):
         Half = 'H' + str(half)
@@ -339,7 +376,7 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
     (all days, 4x daily), saves it to path.
     available fields are in variable dictionary:"""
     def retrieve_era5(c, name, request, target):
-        c.retrieve(name=name, request=request, target=target)
+        # c.retrieve(name=name, request=request, target=target)
         print('Download complete!')
         return
 
@@ -408,7 +445,8 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                                       target=path + filename)
                         print('')
         else:
-            # custom mode: relay on user to get everything, custom is the filename
+            # custom mode: relay on user to get everything, custom is the
+            # filename cds_params.json, but you could use any filename
             if c_dict['monthly']:
                 # monthly means
                 dt_index, dates_dict = date_range_to_monthly_request_string()
@@ -442,8 +480,8 @@ if __name__ == '__main__':
                           U , V", type=str, choices=era5_var.list_vars(),
                           metavar='Era5 Field name abbreviation')
     optional.add_argument('--custom', help='load custom file named \
-                          cds_params.txt that contains filename and keywords'
-                          , type=check_params_file)
+                          cds_params.txt that contains filename and keywords',
+                          type=check_params_file)
 #                          metavar=str(cds.start_year) + ' to ' + str(cds.end_year))
 #    optional.add_argument('--half', help='a spescific six months to download,\
 #                          e.g, 1 or 2', type=int, choices=[1, 2],
