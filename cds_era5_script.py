@@ -377,7 +377,7 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
     (all days, 4x daily), saves it to path.
     available fields are in variable dictionary:"""
     def retrieve_era5(c, name, request, target):
-        # c.retrieve(name=name, request=request, target=target)
+        c.retrieve(name=name, request=request, target=target)
         print('Download complete!')
         return
 
