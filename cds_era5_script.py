@@ -86,7 +86,8 @@ class era5_variable:
                        'E': 'evaporation',
                        'TP': 'total_precipitation',
                        '10WU': '10m_u_component_of_wind',
-                       '10WV': '10m_v_component_of_wind'}
+                       '10WV': '10m_v_component_of_wind',
+                       'SP': 'surface_pressure'}
         self.complete = {'MTTSWR': ['235001', 'Mean temperature tendency' +
                                     ' due to short-wave radiation'],
                          'MTTLWR': ['235002', 'Mean temperature tendency' +
