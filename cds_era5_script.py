@@ -90,10 +90,13 @@ class era5_variable:
                        'SP': 'surface_pressure'}
         self.complete = {'MTTSWR': ['235001', 'Mean temperature tendency' +
                                     ' due to short-wave radiation'],
-                         'MTTLWR': ['235002', 'Mean temperature tendency' +
-                                    ' due to long-wave radiation'],
-                         'MTTPM': ['235005', 'Mean temperature tendency due ' +
-                                   ' to parametrisations']}
+                         'MTTLWR': ['235002', 'Mean temperature tendency'
+                                    + ' due to long-wave radiation'],
+                         'MTTPM': ['235005', 'Mean temperature tendency due '
+                                   + ' to parametrisations'],
+
+                         'LTI': ['151201', 'Temperature increment from ' +
+                                 'relaxation term']}
 
     def list_var(self, var):
         return [x for x in var.keys()]
