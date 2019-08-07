@@ -88,6 +88,9 @@ class era5_variable:
                        '10WU': '10m_u_component_of_wind',
                        '10WV': '10m_v_component_of_wind',
                        'SP': 'surface_pressure'}
+        self.land = {'SN_ALB': 'snow_albedo',
+                     'SN_CVR': 'snow_cover',
+                     'SN_DWE': 'snow_depth_water_equivalent'}
         self.complete = {'MTTSWR': ['235001', 'Mean temperature tendency' +
                                     ' due to short-wave radiation'],
                          'MTTLWR': ['235002', 'Mean temperature tendency'
@@ -110,7 +113,8 @@ class era5_variable:
         single = self.list_var(self.single)
         pressure = self.list_var(self.pressure)
         complete = self.list_var(self.complete)
-        return single + pressure + complete
+        land = self.list_var(self.land)
+        return single + pressure + complete + land
 
     def get_model_name(self, field):
         self.field = field
@@ -118,6 +122,11 @@ class era5_variable:
             self.model_name = 'reanalysis-era5-single-levels'
             var = self.single[field]
             print('Single level model selected...')
+            return cds_single(var)
+        elif field in self.land.keys():
+            self.model_name = 'reanalysis-era5-land'
+            var = self.land[field]
+            print('Land model selected...')
             return cds_single(var)
         elif field in self.pressure.keys():
             self.model_name = 'reanalysis-era5-pressure-levels'
@@ -137,11 +146,17 @@ class era5_variable:
         self.show('pressure')
         self.show('single')
         self.show('complete')
+        self.show('land')
 
     def show(self, modelname):
         if modelname == 'pressure':
             print('Pressure level fields:')
             for key, value in self.pressure.items():
+                print(key + ':', value)
+            print('')
+        elif modelname == 'land':
+            print('Land fields:')
+            for key, value in self.land.items():
                 print(key + ':', value)
             print('')
         elif modelname == 'single':
@@ -333,7 +348,7 @@ def get_custom_params(custom_fn, cds_obj):
 def generate_filename(modelname, field, cds_obj, half=1):
     """naming method for filenames using field (e.g., 'U', 'T')
     and year and half"""
-    if 'single' in modelname.split('-'):
+    if 'single' in modelname.split('-') or 'land' in modelname.split('-'):
         years = '-'.join(str(v) for v in [cds_obj.year[0], cds_obj.year[-1]])
         value_list = ['era5', field, years]
     elif 'pressure' in modelname.split('-'):
@@ -379,13 +394,15 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
     """downloads the requested era5 fields within a specific year, six months
     (all days, 4x daily), saves it to path.
     available fields are in variable dictionary:"""
+    import cdsapi
+    import os
+    import numpy as np
+
     def retrieve_era5(c, name, request, target):
         c.retrieve(name=name, request=request, target=target)
         print('Download complete!')
         return
 
-    import cdsapi
-    import os
     c = cdsapi.Client()
     modelname = era5_var.model_name
     if 'single' in modelname.split('-'):
@@ -405,6 +422,21 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                 retrieve_era5(c, name=modelname, request=vars(cds_obj),
                               target=path + filename)
                 print('')
+    elif 'land' in modelname.split('-'):
+        # years = get_decade(era5_var.start_year, era5_var.end_year)
+        years = np.arange(2001, era5_var.end_year + 1)
+        cds_obj.year = [str(x) for x in years]
+        filename = generate_filename(modelname, era5_var.field, cds_obj)
+        print('model_name: ' + modelname)
+        cds_obj.show()
+        print('proccesing request for ' + filename + ' :')
+        print('target: ' + path + filename)
+        # for some strange reason the key 'product_type' kills the session:
+        req_dict = vars(cds_obj)
+        req_dict.pop('product_type')
+        retrieve_era5(c, name=modelname, request=req_dict,
+                      target=path + filename)
+        print('')
     elif 'pressure' in modelname.split('-'):
         halves = [1, 2]
         years = era5_var.list_years()
@@ -473,7 +505,7 @@ if __name__ == '__main__':
     import sys
     era5_var = era5_variable()
     era5_var.start_year = 1979
-    era5_var.end_year = 2018
+    era5_var.end_year = 2019
     parser = argparse.ArgumentParser(description=era5_var.desc())
     optional = parser._action_groups.pop()
     required = parser.add_argument_group('required arguments')
