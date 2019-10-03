@@ -12,9 +12,9 @@ Half year : ~2.1 GB
 whole field = 40 years x 2 halves x 2.1 GB = 170.1 GB
 time= ~8 hours per half a year, whole field= ~ 27 days
 5 fields = 850.5 GB, can parralize to take the same amount of time
-Need to add MARS support...
 """
 
+# TODO: change path api with Path from pathlib
 
 def date_range_to_monthly_request_string(
         start_date='1979-01-01', end_date='2018-12-01'):
@@ -99,8 +99,10 @@ class era5_variable:
                                    + ' to parametrisations'],
 
                          'LTI': ['151201', 'Temperature increment from ' +
-                                 'relaxation term']}
-
+                                 'relaxation term'],
+                         'T_ML': ['130', 'Temperature from Model Levels'],
+                         'U_ML': ['131', 'U component of wind velocity(zonal) from Model Levels'],
+                         'V_ML': ['132', 'V component of wind velocity(meridional) from Model Levels']}
     def list_var(self, var):
         return [x for x in var.keys()]
 
@@ -339,6 +341,8 @@ def get_custom_params(custom_fn, cds_obj):
     c_dict['filename'] = dd.pop('filename')
     if dd['stream'] == 'moda':
         c_dict['monthly'] = True
+    else:
+        c_dict['monthly'] = False
     cds_obj.from_dict(dd)
     cds_obj.del_attr('step')
     cds_obj.del_attr('time')
@@ -497,6 +501,18 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                     print('target: ' + path + filename)
                     retrieve_era5(c, name=modelname, request=vars(cds_obj),
                                   target=path + filename)
+            else:
+                filename = c_dict['filename'] + '.nc'
+                cds_obj.set_class_atr()
+                if 'date' in c_dict.keys():
+                    cds_obj.date = c_dict['date']
+                # cds_obj.decade = decade
+                print('model_name: ' + modelname)
+                cds_obj.show()
+                print('proccesing request for ' + filename + ' :')
+                print('target: ' + path + filename)
+                retrieve_era5(c, name=modelname, request=vars(cds_obj),
+                              target=path + filename)
     return
 
 
