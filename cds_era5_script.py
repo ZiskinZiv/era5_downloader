@@ -281,11 +281,11 @@ class cds_mars:
         self.param = param
         self.expver = '1'
         self.stream = 'oper'
-        self.type = 'fc'
-        self.step = '/'.join(['0', '6'])
+        self.type = 'an'  # 'fc'
+        # self.step = '/'.join(['0', '6'])
         self.levtype = 'ml'
         self.levelist = '1/to/137'
-        self.time = '06/18'
+        self.time = '00/06/12/18'
         self.grid = [1.25, 1.25]
         self.format = 'netcdf'
     # 'date'    : '2013-01-01',
@@ -521,7 +521,7 @@ if __name__ == '__main__':
     import sys
     era5_var = era5_variable()
     era5_var.start_year = 1979
-    era5_var.end_year = 2019
+    era5_var.end_year = 2018
     parser = argparse.ArgumentParser(description=era5_var.desc())
     optional = parser._action_groups.pop()
     required = parser.add_argument_group('required arguments')
