@@ -283,6 +283,7 @@ class cds_mars:
         self.stream = 'oper'
         self.type = 'an'  # 'fc'
         # self.step = '/'.join(['0', '6'])
+        self.type = 'an'  # 'fc'
         self.levtype = 'ml'
         self.levelist = '1/to/137'
         self.time = '00/06/12/18'
