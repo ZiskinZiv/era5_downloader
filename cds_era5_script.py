@@ -14,7 +14,6 @@ time= ~8 hours per half a year, whole field= ~ 27 days
 5 fields = 850.5 GB, can parralize to take the same amount of time
 """
 
-# TODO: change path api with Path from pathlib
 
 def date_range_to_monthly_request_string(
         start_date='1979-01-01', end_date='2018-12-01'):
@@ -232,6 +231,14 @@ class cds_single:
         vars(self).update(**vars_d)
         return self
 
+    def from_dict(self, d):
+        self.__dict__.update(d)
+        return self
+
+    def del_attr(self, name):
+        delattr(self, name)
+        return self
+
     def count_items(self):
         from numpy import prod
         max_items = 100000
@@ -339,14 +346,25 @@ def get_custom_params(custom_fn, cds_obj):
     with open(custom_fn) as f:
         dd = json.load(f)
     c_dict = {}
-    c_dict['filename'] = dd.pop('filename')
-    if dd['stream'] == 'moda':
-        c_dict['monthly'] = True
-    else:
-        c_dict['monthly'] = False
+    if 'years' in dd.keys():
+        c_dict['years'] = parse_mars_years(dd.pop('years'))
+    if 'filename' in dd.keys():
+        c_dict['filename'] = dd.pop('filename')
+    if 'stream' in dd.keys():
+        if dd['stream'] == 'moda':
+            c_dict['monthly'] = True
+        else:
+            c_dict['monthly'] = False
+    if 'to_delete' in dd.keys():
+        to_delete_list = dd.pop('to_delete')
+        for item_to_delete in to_delete_list:
+            if item_to_delete in vars(cds_obj).keys():
+                print('deleting {}'.format(item_to_delete))
+                cds_obj = cds_obj.del_attr(item_to_delete)
     cds_obj.from_dict(dd)
-    cds_obj.del_attr('step')
-    cds_obj.del_attr('time')
+    if 'step' in vars(cds_obj).keys():
+        cds_obj = cds_obj.del_attr('step')
+        # cds_obj.del_attr('time')
     return cds_obj, c_dict
 
 
@@ -371,20 +389,28 @@ def generate_filename(modelname, field, cds_obj, half=1):
     return filename
 
 
+def parse_mars_years(mars_years):
+    import numpy as np
+    start = mars_years.split('/to/')[0]
+    end = mars_years.split('/to/')[-1]
+    return np.arange(int(start), int(end) + 1)
+
+
 def check_path(path):
     import os
+    from pathlib import Path
     path = str(path)
     if not os.path.exists(path):
         raise argparse.ArgumentTypeError(path + ' does not exist...')
-    return path
+    return Path(path)
 
 
-def check_params_file(fn):
-    import os
-    path_fn = os.getcwd() + '/' + fn
-    if not os.path.isfile(path_fn):
-        raise argparse.ArgumentTypeError(path_fn + ' does not exist...')
-    return path_fn
+def check_params_file(filepath):
+    from pathlib import Path
+    filepath = Path(filepath)
+    if not filepath.is_file():
+        raise argparse.ArgumentTypeError('{} does not exist...'.format(filepath))
+    return filepath
 
 
 def get_decade(start_year, end_year):
@@ -415,17 +441,16 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
         for year in years:
             cds_obj.year = year.tolist()
             filename = generate_filename(modelname, era5_var.field, cds_obj)
-            if os.path.isfile(os.path.join(path, filename)):
-                print(filename + ' already exists in ' + path +
-                      ' skipping...')
+            if (path / filename).is_file():
+                print('{} already exists in {}, skipping...'.format(filename, path))
                 continue
             else:
                 print('model_name: ' + modelname)
                 cds_obj.show()
                 print('proccesing request for ' + filename + ' :')
-                print('target: ' + path + filename)
+                print('target: {}/{}'.format(path, filename))
                 retrieve_era5(c, name=modelname, request=vars(cds_obj),
-                              target=path + filename)
+                              target=path / filename)
                 print('')
     elif 'land' in modelname.split('-'):
         # years = get_decade(era5_var.start_year, era5_var.end_year)
@@ -435,33 +460,36 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
         print('model_name: ' + modelname)
         cds_obj.show()
         print('proccesing request for ' + filename + ' :')
-        print('target: ' + path + filename)
+        print('target: {}/{}'.format(path, filename)) 
         # for some strange reason the key 'product_type' kills the session:
         req_dict = vars(cds_obj)
         req_dict.pop('product_type')
         retrieve_era5(c, name=modelname, request=req_dict,
-                      target=path + filename)
+                      target=path / filename)
         print('')
     elif 'pressure' in modelname.split('-'):
         halves = [1, 2]
-        years = era5_var.list_years()
+        if c_dict:
+            if 'years' in c_dict.keys():
+                years = c_dict['years']
+        else:
+            years = era5_var.list_years()
         for year in years:
             cds_obj.year = year
             for half in halves:
                 cds_obj.select_half(half)
                 filename = generate_filename(modelname, era5_var.field,
                                              cds_obj, half)
-                if os.path.isfile(os.path.join(path, filename)):
-                    print(filename + ' already exists in ' + path +
-                          ' skipping...')
+                if (path / filename).is_file():
+                    print('{} already exists in {}, skipping...'.format(filename, path))
                     continue
                 else:
                     print('model_name: ' + modelname)
                     cds_obj.show()
                     print('proccesing request for ' + filename + ' :')
-                    print('target: ' + path + filename)
+                    print('target: {}/{}'.format(path, filename))
                     retrieve_era5(c, name=modelname, request=vars(cds_obj),
-                                  target=path + filename)
+                                  target=path / filename)
                     print('')
     elif 'complete' in modelname.split('-'):
         if not c_dict:
@@ -473,17 +501,16 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                     cds_obj.get_date(year, half)
                     filename = generate_filename(modelname, era5_var.field,
                                                  cds_obj, half)
-                    if os.path.isfile(os.path.join(path, filename)):
-                        print(filename + ' already exists in ' + path +
-                              ' skipping...')
+                    if (path / filename).is_file():
+                        print('{} already exists in {}, skipping...'.format(filename, path))
                         continue
                     else:
                         print('model_name: ' + modelname)
                         cds_obj.show()
                         print('proccesing request for ' + filename + ' :')
-                        print('target: ' + path + filename)
+                        print('target: {}/{}'.format(path, filename))
                         retrieve_era5(c, name=modelname, request=vars(cds_obj),
-                                      target=path + filename)
+                                      target=path / filename)
                         print('')
         else:
             # custom mode: relay on user to get everything, custom is the
@@ -499,9 +526,9 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                     print('model_name: ' + modelname)
                     cds_obj.show()
                     print('proccesing request for ' + filename + ' :')
-                    print('target: ' + path + filename)
+                    print('target: {}/{}'.format(path, filename))
                     retrieve_era5(c, name=modelname, request=vars(cds_obj),
-                                  target=path + filename)
+                                  target=path / filename)
             else:
                 filename = c_dict['filename'] + '.nc'
                 cds_obj.set_class_atr()
@@ -511,9 +538,9 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                 print('model_name: ' + modelname)
                 cds_obj.show()
                 print('proccesing request for ' + filename + ' :')
-                print('target: ' + path + filename)
+                print('target: {}/{}'.format(path, filename))
                 retrieve_era5(c, name=modelname, request=vars(cds_obj),
-                              target=path + filename)
+                              target=path / filename)
     return
 
 
@@ -550,8 +577,7 @@ if __name__ == '__main__':
         print('field is a required argument, run with -h...')
         sys.exit()
     cds_obj = era5_var.get_model_name(args.field)
-    print('getting era5 all years, field: ' + args.field + ', saving to path:'
-          + args.path)
+    print('getting era5 all years, field: {}, saving to path: {}'.format(args.field, args.path))
     if args.custom is not None:
         cds_obj, custom_dict = get_custom_params(args.custom, cds_obj)
         get_era5_field(args.path, era5_var, cds_obj, custom_dict)
