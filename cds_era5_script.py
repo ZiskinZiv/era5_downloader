@@ -346,6 +346,8 @@ def get_custom_params(custom_fn, cds_obj):
     with open(custom_fn) as f:
         dd = json.load(f)
     c_dict = {}
+    if 'suffix' in dd.keys():
+        c_dict['suffix'] = dd.pop('suffix')
     if 'years' in dd.keys():
         c_dict['years'] = parse_mars_years(dd.pop('years'))
     if 'filename' in dd.keys():
@@ -368,7 +370,7 @@ def get_custom_params(custom_fn, cds_obj):
     return cds_obj, c_dict
 
 
-def generate_filename(modelname, field, cds_obj, half=1):
+def generate_filename(modelname, field, cds_obj, half=1, suffix=None):
     """naming method for filenames using field (e.g., 'U', 'T')
     and year and half"""
     if 'single' in modelname.split('-') or 'land' in modelname.split('-'):
@@ -385,6 +387,8 @@ def generate_filename(modelname, field, cds_obj, half=1):
         Half = 'H' + str(half)
         year = cds_obj.date[:4]
         value_list = ['era5', field, year, Half]
+    if suffix is not None:
+        value_list.append(suffix)
     filename = '_'.join(str(v) for v in value_list) + '.nc'
     return filename
 
@@ -436,11 +440,17 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
 
     c = cdsapi.Client()
     modelname = era5_var.model_name
+    if c_dict:
+        if 'suffix' in c_dict.keys():
+            suffix = c_dict['suffix']
+    else:
+        suffix = None
     if 'single' in modelname.split('-'):
         years = get_decade(era5_var.start_year, era5_var.end_year)
         for year in years:
             cds_obj.year = year.tolist()
-            filename = generate_filename(modelname, era5_var.field, cds_obj)
+            filename = generate_filename(modelname, era5_var.field, cds_obj,
+                                         suffix=suffix)
             if (path / filename).is_file():
                 print('{} already exists in {}, skipping...'.format(filename, path))
                 continue
@@ -456,7 +466,8 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
         # years = get_decade(era5_var.start_year, era5_var.end_year)
         years = np.arange(2001, era5_var.end_year + 1)
         cds_obj.year = [str(x) for x in years]
-        filename = generate_filename(modelname, era5_var.field, cds_obj)
+        filename = generate_filename(modelname, era5_var.field, cds_obj,
+                                     suffix=suffix)
         print('model_name: ' + modelname)
         cds_obj.show()
         print('proccesing request for ' + filename + ' :')
@@ -479,7 +490,7 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
             for half in halves:
                 cds_obj.select_half(half)
                 filename = generate_filename(modelname, era5_var.field,
-                                             cds_obj, half)
+                                             cds_obj, half, suffix=suffix)
                 if (path / filename).is_file():
                     print('{} already exists in {}, skipping...'.format(filename, path))
                     continue
@@ -500,7 +511,7 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                 for half in halves:
                     cds_obj.get_date(year, half)
                     filename = generate_filename(modelname, era5_var.field,
-                                                 cds_obj, half)
+                                                 cds_obj, half, suffix=suffix)
                     if (path / filename).is_file():
                         print('{} already exists in {}, skipping...'.format(filename, path))
                         continue
