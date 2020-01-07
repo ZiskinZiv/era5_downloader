@@ -63,7 +63,7 @@ class FieldnotFound(Error):
 class era5_variable:
     def __init__(self):
         self.start_year = 1979  # do not change this until era5 publishes more data
-        self.end_year = 2018  # era5 reanalysis data lags real time with 2-3 months
+        self.end_year = 2019  # era5 reanalysis data lags real time with 2-3 months
         self.pressure = {'phi': 'geopotential',
                          'T': 'temperature',
                          'U': 'u_component_of_wind',
@@ -86,7 +86,8 @@ class era5_variable:
                        'TP': 'total_precipitation',
                        '10WU': '10m_u_component_of_wind',
                        '10WV': '10m_v_component_of_wind',
-                       'SP': 'surface_pressure'}
+                       'SP': 'surface_pressure',
+                       'TCWV': 'total_column_water_vapour'}
         self.land = {'SN_ALB': 'snow_albedo',
                      'SN_CVR': 'snow_cover',
                      'SN_DWE': 'snow_depth_water_equivalent'}
@@ -101,7 +102,9 @@ class era5_variable:
                                  'relaxation term'],
                          'T_ML': ['130', 'Temperature from Model Levels'],
                          'U_ML': ['131', 'U component of wind velocity(zonal) from Model Levels'],
-                         'V_ML': ['132', 'V component of wind velocity(meridional) from Model Levels']}
+                         'V_ML': ['132', 'V component of wind velocity(meridional) from Model Levels'],
+                         'Q_ML': ['133', 'Specific humidity from Model Levels']}
+
     def list_var(self, var):
         return [x for x in var.keys()]
 
@@ -443,10 +446,30 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
     if c_dict:
         if 'suffix' in c_dict.keys():
             suffix = c_dict['suffix']
+        else:
+            suffix = None
+        if 'filename' in c_dict.keys():
+            fn = c_dict['filename']
+        else:
+            fn = None
+        if 'monthly' in c_dict.keys():
+            monthly = c_dict.keys()
+        else:
+            monthly = None
+        if 'years' in c_dict.keys():
+            user_years = c_dict['years']
+        else:
+            user_years = None
     else:
         suffix = None
+        fn = None
+        monthly = None
+        user_years = None
     if 'single' in modelname.split('-'):
-        years = get_decade(era5_var.start_year, era5_var.end_year)
+        if user_years is not None:
+            years = get_decade(user_years[0], user_years[-1])
+        else:
+            years = get_decade(era5_var.start_year, era5_var.end_year)
         for year in years:
             cds_obj.year = year.tolist()
             filename = generate_filename(modelname, era5_var.field, cds_obj,
@@ -464,7 +487,10 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                 print('')
     elif 'land' in modelname.split('-'):
         # years = get_decade(era5_var.start_year, era5_var.end_year)
-        years = np.arange(2001, era5_var.end_year + 1)
+        if user_years is not None:
+            years = np.arange(2001, user_years[-1] + 1)
+        else:
+            years = np.arange(2001, era5_var.end_year + 1)
         cds_obj.year = [str(x) for x in years]
         filename = generate_filename(modelname, era5_var.field, cds_obj,
                                      suffix=suffix)
@@ -479,12 +505,11 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                       target=path / filename)
         print('')
     elif 'pressure' in modelname.split('-'):
-        halves = [1, 2]
-        if c_dict:
-            if 'years' in c_dict.keys():
-                years = c_dict['years']
+        if user_years is not None:
+            years = user_years
         else:
             years = era5_var.list_years()
+        halves = [1, 2]
         for year in years:
             cds_obj.year = year
             for half in halves:
@@ -503,9 +528,38 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                                   target=path / filename)
                     print('')
     elif 'complete' in modelname.split('-'):
-        if not c_dict:
+        if monthly and fn is not None:
+            # monthly means
+            dt_index, dates_dict = date_range_to_monthly_request_string()
+            for decade, mon_dates in dates_dict.items():
+                filename = '{}_{}.nc'.format(fn, decade)
+                cds_obj.set_class_atr()
+                cds_obj.date = mon_dates
+                cds_obj.decade = decade
+                print('model_name: ' + modelname)
+                cds_obj.show()
+                print('proccesing request for ' + filename + ' :')
+                print('target: {}/{}'.format(path, filename))
+                retrieve_era5(c, name=modelname, request=vars(cds_obj),
+                              target=path / filename)
+        elif monthly is None and fn is not None:
+            filename = '{}.nc'.format(fn)
+            cds_obj.set_class_atr()
+            if 'date' in c_dict.keys():
+                cds_obj.date = c_dict['date']
+            # cds_obj.decade = decade
+            print('model_name: ' + modelname)
+            cds_obj.show()
+            print('proccesing request for ' + filename + ' :')
+            print('target: {}/{}'.format(path, filename))
+            retrieve_era5(c, name=modelname, request=vars(cds_obj),
+                          target=path / filename)
+        elif monthly is None and fn is None:
+            if user_years is not None:
+                years = user_years
+            else:
+                years = era5_var.list_years()
             halves = [1, 2]
-            years = era5_var.list_years()
             cds_obj.set_class_atr()
             for year in years:
                 for half in halves:
@@ -523,35 +577,6 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                         retrieve_era5(c, name=modelname, request=vars(cds_obj),
                                       target=path / filename)
                         print('')
-        else:
-            # custom mode: relay on user to get everything, custom is the
-            # filename cds_params.json, but you could use any filename
-            if c_dict['monthly']:
-                # monthly means
-                dt_index, dates_dict = date_range_to_monthly_request_string()
-                for decade, mon_dates in dates_dict.items():
-                    filename = c_dict['filename'] + '_' + decade + '.nc'
-                    cds_obj.set_class_atr()
-                    cds_obj.date = mon_dates
-                    cds_obj.decade = decade
-                    print('model_name: ' + modelname)
-                    cds_obj.show()
-                    print('proccesing request for ' + filename + ' :')
-                    print('target: {}/{}'.format(path, filename))
-                    retrieve_era5(c, name=modelname, request=vars(cds_obj),
-                                  target=path / filename)
-            else:
-                filename = c_dict['filename'] + '.nc'
-                cds_obj.set_class_atr()
-                if 'date' in c_dict.keys():
-                    cds_obj.date = c_dict['date']
-                # cds_obj.decade = decade
-                print('model_name: ' + modelname)
-                cds_obj.show()
-                print('proccesing request for ' + filename + ' :')
-                print('target: {}/{}'.format(path, filename))
-                retrieve_era5(c, name=modelname, request=vars(cds_obj),
-                              target=path / filename)
     return
 
 
@@ -560,7 +585,7 @@ if __name__ == '__main__':
     import sys
     era5_var = era5_variable()
     era5_var.start_year = 1979
-    era5_var.end_year = 2018
+    era5_var.end_year = 2019
     parser = argparse.ArgumentParser(description=era5_var.desc())
     optional = parser._action_groups.pop()
     required = parser.add_argument_group('required arguments')
