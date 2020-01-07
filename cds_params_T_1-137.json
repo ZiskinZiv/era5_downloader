@@ -1,8 +1,11 @@
 {
-	"filename": "era5_T_ml_all",
 	"stream": "oper",
 	"type": "an",
 	"levtype": "ml",
 	"levelist": "1/to/137",
-	"date": "1979-01-01/to/2018-12-31"
+	"years": "1996/to/2019",
+	"area": ["34.0", "34.0", "29.0", "36.0"],
+	"time": "00/to/23/by/1",
+	"suffix": "",
+	"to_delete": ["grid"]
 }
