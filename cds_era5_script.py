@@ -16,7 +16,7 @@ time= ~8 hours per half a year, whole field= ~ 27 days
 
 
 def date_range_to_monthly_request_string(
-        start_date='1979-01-01', end_date='2018-12-01'):
+        start_date='1979-01-01', end_date='2019-12-01'):
     import pandas as pd
     from itertools import groupby
     import numpy as np
