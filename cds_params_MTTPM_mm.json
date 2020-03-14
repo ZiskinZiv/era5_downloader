@@ -1,7 +1,7 @@
 {
 	"filename": "era5_MTTPM_MM",
 	"stream": "moda",
-	"type": "an",
+	"type": "fc",
 	"levtype": "ml",
 	"levelist": "52/to/56"
 }
