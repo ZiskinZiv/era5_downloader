@@ -291,14 +291,16 @@ class cds_mars:
         self.param = param
         self.expver = '1'
         self.stream = 'oper'
-        self.type = 'an'  # 'fc'
         # self.step = '/'.join(['0', '6'])
-        self.type = 'an'  # 'fc'
         self.levtype = 'ml'
         self.levelist = '1/to/137'
         self.time = '00/06/12/18'
         self.grid = [1.25, 1.25]
         self.format = 'netcdf'
+        if str(param).startswith('235'):
+            self.type = 'fc'
+        else:
+            self.type = 'an'
     # 'date'    : '2013-01-01',
 
     def from_dict(self, d):
