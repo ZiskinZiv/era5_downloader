@@ -61,9 +61,9 @@ class FieldnotFound(Error):
 
 
 class era5_variable:
-    def __init__(self):
-        self.start_year = 1979  # do not change this until era5 publishes more data
-        self.end_year = 2019  # era5 reanalysis data lags real time with 2-3 months
+    def __init__(self, era5p1_flag=False, start_year=1979, end_year=2019):
+        self.start_year = start_year  # do not change this until era5 publishes more data
+        self.end_year = end_year  # era5 reanalysis data lags real time with 2-3 months
         self.pressure = {'phi': 'geopotential',
                          'T': 'temperature',
                          'U': 'u_component_of_wind',
@@ -104,7 +104,10 @@ class era5_variable:
                          'U_ML': ['131', 'U component of wind velocity(zonal) from Model Levels'],
                          'V_ML': ['132', 'V component of wind velocity(meridional) from Model Levels'],
                          'Q_ML': ['133', 'Specific humidity from Model Levels']}
-
+        self.era5p1_flag = era5p1_flag
+        if era5p1_flag:
+            self.start_year = 2000
+            self.end_year = 2006
     def list_var(self, var):
         return [x for x in var.keys()]
 
@@ -138,7 +141,11 @@ class era5_variable:
             print('Pressure level model selected...')
             return cds_pressure(var)
         elif field in self.complete.keys():
-            self.model_name = 'reanalysis-era5-complete'
+            if self.era5p1_flag:
+                self.model_name = 'reanalysis-era5.1-complete'
+                print('ERA5.1 model selected with years set to 2000-2006!')
+            else:
+                self.model_name = 'reanalysis-era5-complete'
             var = self.complete[field][0]
             print('Complete model selected...working with MARS keywords.')
             return cds_mars(var)
@@ -391,7 +398,10 @@ def generate_filename(modelname, field, cds_obj, half=1, suffix=None):
     elif 'complete' in modelname.split('-'):
         Half = 'H' + str(half)
         year = cds_obj.date[:4]
-        value_list = ['era5', field, year, Half]
+        if 'era5.1' in modelname.split('-'):
+            value_list = ['era5p1', field, year, Half]
+        else:
+            value_list = ['era5', field, year, Half]
     if suffix is not None:
         value_list.append(suffix)
     filename = '_'.join(str(v) for v in value_list) + '.nc'
@@ -430,7 +440,7 @@ def get_decade(start_year, end_year):
     return yr_chunks
 
 
-def get_era5_field(path, era5_var, cds_obj, c_dict=None):
+def get_era5_field(path, era5_var, cds_obj, c_dict=None, dry=False):
     """downloads the requested era5 fields within a specific year, six months
     (all days, 4x daily), saves it to path.
     available fields are in variable dictionary:"""
@@ -438,10 +448,14 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
     import os
     import numpy as np
 
-    def retrieve_era5(c, name, request, target):
-        c.retrieve(name=name, request=request, target=target)
-        print('Download complete!')
-        return
+    def retrieve_era5(c, name, request, target, dry=False):
+        if dry:
+            print('Dry run! (no download command sent!)')
+            return
+        else:
+            c.retrieve(name=name, request=request, target=target)
+            print('Download complete!')
+            return
 
     c = cdsapi.Client()
     modelname = era5_var.model_name
@@ -485,7 +499,7 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                 print('proccesing request for ' + filename + ' :')
                 print('target: {}/{}'.format(path, filename))
                 retrieve_era5(c, name=modelname, request=vars(cds_obj),
-                              target=path / filename)
+                              target=path / filename, dry=dry)
                 print('')
     elif 'land' in modelname.split('-'):
         # years = get_decade(era5_var.start_year, era5_var.end_year)
@@ -504,7 +518,7 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
         req_dict = vars(cds_obj)
         req_dict.pop('product_type')
         retrieve_era5(c, name=modelname, request=req_dict,
-                      target=path / filename)
+                      target=path / filename, dry=dry)
         print('')
     elif 'pressure' in modelname.split('-'):
         if user_years is not None:
@@ -527,7 +541,7 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                     print('proccesing request for ' + filename + ' :')
                     print('target: {}/{}'.format(path, filename))
                     retrieve_era5(c, name=modelname, request=vars(cds_obj),
-                                  target=path / filename)
+                                  target=path / filename, dry=dry)
                     print('')
     elif 'complete' in modelname.split('-'):
         if monthly and fn is not None:
@@ -543,7 +557,7 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                 print('proccesing request for ' + filename + ' :')
                 print('target: {}/{}'.format(path, filename))
                 retrieve_era5(c, name=modelname, request=vars(cds_obj),
-                              target=path / filename)
+                              target=path / filename, dry=dry)
         elif monthly is None and fn is not None:
             filename = '{}.nc'.format(fn)
             cds_obj.set_class_atr()
@@ -555,7 +569,7 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
             print('proccesing request for ' + filename + ' :')
             print('target: {}/{}'.format(path, filename))
             retrieve_era5(c, name=modelname, request=vars(cds_obj),
-                          target=path / filename)
+                          target=path / filename, dry=dry)
         elif monthly is None and fn is None:
             if user_years is not None:
                 years = user_years
@@ -577,7 +591,7 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
                         print('proccesing request for ' + filename + ' :')
                         print('target: {}/{}'.format(path, filename))
                         retrieve_era5(c, name=modelname, request=vars(cds_obj),
-                                      target=path / filename)
+                                      target=path / filename, dry=dry)
                         print('')
     return
 
@@ -585,21 +599,28 @@ def get_era5_field(path, era5_var, cds_obj, c_dict=None):
 if __name__ == '__main__':
     import argparse
     import sys
-    era5_var = era5_variable()
-    era5_var.start_year = 1979
-    era5_var.end_year = 2019
-    parser = argparse.ArgumentParser(description=era5_var.desc())
+    era5_dummy = era5_variable()
+    parser = argparse.ArgumentParser(description=era5_dummy.desc())
     optional = parser._action_groups.pop()
     required = parser.add_argument_group('required arguments')
     # remove this line: optional = parser...
     required.add_argument('--path', help="a full path to save in the cluster,\
                           e.g., /data11/ziskin/", type=check_path)
     required.add_argument('--field', help="era5 field abbreviation, e.g., T,\
-                          U , V", type=str, choices=era5_var.list_vars(),
+                          U , V", type=str, choices=era5_dummy.list_vars(),
                           metavar='Era5 Field name abbreviation')
     optional.add_argument('--custom', help='load custom file named \
                           cds_params.txt that contains filename and keywords',
                           type=check_params_file)
+    optional.add_argument('--syear', help='start year e.g., 1979', default=1979,
+                          type=int)
+    optional.add_argument('--eyear', help='end year e.g., 2019', default=2019,
+                          type=int)
+    optional.add_argument('--era5p1', help='ERA5.1 download flag, automatiacally sets the years to 2000-2006'
+                          ,action='store_true')
+    optional.add_argument('--dry', help='dry run, no download command sent...'
+                          ,action='store_true')
+
 #                          metavar=str(cds.start_year) + ' to ' + str(cds.end_year))
 #    optional.add_argument('--half', help='a spescific six months to download,\
 #                          e.g, 1 or 2', type=int, choices=[1, 2],
@@ -614,10 +635,11 @@ if __name__ == '__main__':
     elif args.field is None:
         print('field is a required argument, run with -h...')
         sys.exit()
+    era5_var = era5_variable(start_year=args.syear, end_year=args.eyear, era5p1_flag=args.era5p1)
     cds_obj = era5_var.get_model_name(args.field)
     print('getting era5 all years, field: {}, saving to path: {}'.format(args.field, args.path))
     if args.custom is not None:
         cds_obj, custom_dict = get_custom_params(args.custom, cds_obj)
-        get_era5_field(args.path, era5_var, cds_obj, custom_dict)
+        get_era5_field(args.path, era5_var, cds_obj, custom_dict, dry=args.dry)
     else:
-        get_era5_field(args.path, era5_var, cds_obj)
+        get_era5_field(args.path, era5_var, cds_obj, dry=args.dry)
