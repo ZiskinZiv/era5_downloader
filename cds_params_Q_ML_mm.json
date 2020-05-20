@@ -1,0 +1,8 @@
+{
+	"filename": "era5_Q_ML_MM",
+	"stream": "moda",
+	"type": "an",
+	"levtype": "ml",
+	"levelist": "1/to/137",
+	"to_delete": ["time"]
+}
