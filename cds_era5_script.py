@@ -100,6 +100,7 @@ class era5_variable:
 
                          'LTI': ['151201', 'Temperature increment from ' +
                                  'relaxation term'],
+                         'MUTPM': ['235007', 'Mean eastward wind tendency due to parametrisations'],
                          'T_ML': ['130', 'Temperature from Model Levels'],
                          'U_ML': ['131', 'U component of wind velocity(zonal) from Model Levels'],
                          'V_ML': ['132', 'V component of wind velocity(meridional) from Model Levels'],
