@@ -307,6 +307,8 @@ class cds_mars:
         self.format = 'netcdf'
         if str(param).startswith('235'):
             self.type = 'fc'
+            self.time = '06:00:00/18:00:00'
+            self.step = '6'
         else:
             self.type = 'an'
     # 'date'    : '2013-01-01',
