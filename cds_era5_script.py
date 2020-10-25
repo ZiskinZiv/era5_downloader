@@ -308,7 +308,7 @@ class cds_mars:
         if str(param).startswith('235'):
             self.type = 'fc'
             self.time = '06:00:00/18:00:00'
-            self.step = '6'
+            self.step = '6/12'
         else:
             self.type = 'an'
     # 'date'    : '2013-01-01',
