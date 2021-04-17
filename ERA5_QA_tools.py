@@ -215,3 +215,22 @@ def concat_and_save_missing_file(missing_file, big_file, suffix='_1.nc'):
     with ProgressBar():
         results = dss_delayed.compute()
     return
+
+
+def read_corrupted_ERA5_table():
+    from pathlib import Path
+    import pandas as pd
+    import csv
+    cwd = Path().cwd()
+    filename = 'era5_corraption_2021-04-15.txt'
+    df = pd.read_csv(cwd/filename, delim_whitespace=True, header=0, quoting=3)
+    df['dataset'] = df['dataset'].astype(str).str.replace("'",'')
+    df['product_type'] = df['product_type'].astype(str).str.replace("'",'')
+    df['year'] = df['year'].astype(str).str.replace("'",'')
+    df['month'] = df['month'].astype(str).str.replace("'",'')
+    df['day'] = df['day'].astype(str).str.replace("'",'')
+    df['time'] = df['time'].astype(str).str.replace("'",'')
+    df['variable'] = df['variable'].astype(str).str.replace("'",'')
+    df['level'] = df['level'].astype(str).str.replace("'",'')
+    df1=df[df['product_type']=='reanalysis']
+    return df1

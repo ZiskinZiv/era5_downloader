@@ -1,4 +1,4 @@
-
+dataset product_type year month day time variable level number number_of_grid_points
 1	'reanalysis-era5-pressure-levels'	'ensemble_members'	'1979'	'02'	'06'	'21:00'	'geopotential'	'800'	3	649
 2	'reanalysis-era5-pressure-levels'	'ensemble_members'	'1979'	'04'	'24'	'21:00'	'temperature'	'150'	7	1445
 3	'reanalysis-era5-pressure-levels'	'ensemble_members'	'1979'	'04'	'26'	'03:00'	'u_component_of_wind'	'700'	9	1813
