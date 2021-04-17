@@ -217,20 +217,89 @@ def concat_and_save_missing_file(missing_file, big_file, suffix='_1.nc'):
     return
 
 
-def read_corrupted_ERA5_table():
+def read_corrupted_ERA5_table(p_type='reanalysis'):
     from pathlib import Path
     import pandas as pd
     import csv
     cwd = Path().cwd()
     filename = 'era5_corraption_2021-04-15.txt'
     df = pd.read_csv(cwd/filename, delim_whitespace=True, header=0, quoting=3)
-    df['dataset'] = df['dataset'].astype(str).str.replace("'",'')
-    df['product_type'] = df['product_type'].astype(str).str.replace("'",'')
-    df['year'] = df['year'].astype(str).str.replace("'",'')
-    df['month'] = df['month'].astype(str).str.replace("'",'')
-    df['day'] = df['day'].astype(str).str.replace("'",'')
-    df['time'] = df['time'].astype(str).str.replace("'",'')
-    df['variable'] = df['variable'].astype(str).str.replace("'",'')
-    df['level'] = df['level'].astype(str).str.replace("'",'')
-    df1=df[df['product_type']=='reanalysis']
+    df['dataset'] = df['dataset'].astype(str).str.replace("'", '')
+    df['product_type'] = df['product_type'].astype(str).str.replace("'", '')
+    df['year'] = df['year'].astype(str).str.replace("'", '')
+    df['month'] = df['month'].astype(str).str.replace("'", '')
+    df['day'] = df['day'].astype(str).str.replace("'", '')
+    df['time'] = df['time'].astype(str).str.replace("'", '')
+    df['variable'] = df['variable'].astype(str).str.replace("'", '')
+    df['level'] = df['level'].astype(str).str.replace("'", '')
+    df1 = df[df['product_type'] == p_type]
     return df1
+
+
+def download_fixed_ERA5_vars(savepath):
+    import cdsapi
+    from cds_era5_script import cds_single
+    from cds_era5_script import cds_pressure
+    df = read_corrupted_ERA5_table('reanalysis')
+    # basically, loop over df rows and download each variable:
+    for i, row, in df.iterrows():
+        var = row['variable']
+        if 'single' in row['dataset']:
+            data = 'single'
+            cds_var = cds_single(var)
+        elif 'pressure' in row['dataset']:
+            data = 'pressure'
+            level = row['level']
+            cds_var = cds_pressure(var)
+            cds_var.pressure_level = level
+        cds_var.year = row['year']
+        cds_var.month = row['month']
+        cds_var.day = row['day']
+        cds_var.time = row['time']
+        var = '-'.join(cds_var.variable.split('_'))
+        if data == 'pressure':
+            filename = 'era5_{}_{}_{}-{}-{}T{}_{}hPa.nc'.format(data, var, cds_var.year, cds_var.month,
+                                                                cds_var.day, cds_var.time, cds_var.pressure_level)
+        elif data == 'single':
+            filename = 'era5_{}_{}_{}-{}-{}T{}.nc'.format(data, var, cds_var.year, cds_var.month,
+                                                          cds_var.day, cds_var.time)
+        c = cdsapi.Client()
+        c.retrieve(name=row['dataset'], request=vars(cds_var),
+                   target=savepath / filename)
+        print('saved {} to {}'.format(filename, savepath))
+    print('Download complete!')
+    return
+
+
+def check_path(path):
+    import os
+    from pathlib import Path
+    path = str(path)
+    if not os.path.exists(path):
+        raise argparse.ArgumentTypeError(path + ' does not exist...')
+    return Path(path)
+
+
+if __name__ == '__main__':
+    import argparse
+    import sys
+    parser = argparse.ArgumentParser()
+    optional = parser._action_groups.pop()
+    required = parser.add_argument_group('required arguments')
+    # remove this line: optional = parser...
+    required.add_argument('--savepath', help="a full path to save in the cluster,\
+                          e.g., /data11/ziskin/", type=check_path)
+    required.add_argument('--mode', help="mode to QA", type=str, choices=['fix_corr'])
+
+    parser._action_groups.append(optional)  # added this line
+    args = parser.parse_args()
+    # print(parser.format_help())
+#    # print(vars(args))
+    if args.savepath is None:
+        print('savepath is a required argument, run with -h...')
+        sys.exit()
+    if args.mode is None:
+        print('mode is a required argument, run with -h...')
+        sys.exit()
+    if args.mode == 'fix_corr':
+        download_fixed_ERA5_vars(args.savepath)
